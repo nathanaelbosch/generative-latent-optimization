@@ -1,0 +1,9 @@
+numpy
+pandas
+plac
+scikit-learn
+# tensorboard
+# tensorflow
+tensorboardX
+torchvision
+tqdm

@@ -1,0 +1,35 @@
+
+* PyTorch Implementation: Optimizing the Latent Space of Generative Networks
+My PyTorch implementation of the paper [[https://arxiv.org/abs/1707.05776]["Optimizing the Latent Space of
+Generative Networks"]] by Piotr Bojanowski, Armand Joulin, David Lopez-Paz, Arthur
+Szlam. It is a very interesting read and good to understand!
+
+My personal goal with this project was to practice reimplementing a paper, in
+order to gain more experience. This paper was not completely trivial, but at the
+same time also very /non-standard/.
+
+** Setup and Installation
+Install the dependencies, ideally in a [[https://docs.python.org/3/library/venv.html][virtual environment]]:
+#+BEGIN_SRC sh
+pip install -r requirements.txt
+#+END_SRC
+
+Install PyTorch as described on the [[https://pytorch.org/][website]], depending on your python version,
+CUDA, etc.
+
+** Train the model
+#+BEGIN_SRC sh
+python glo/main.py
+#+END_SRC
+
+You can also see all available options with, to e.g. decide on the dataset, the
+path where the dataset is stored, or the training parameters.
+#+BEGIN_SRC sh
+python glo/main.py -h
+#+END_SRC
+
+** TensorboardX
+
+** Related:
+Another implementation I found on the topic:
+https://github.com/tneumann/minimal_glo
