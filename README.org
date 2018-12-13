@@ -34,7 +34,7 @@ python main.py -h
 - [ ] explanation for the tensorboard usage
 - [X] logging of the model parameters for nice histograms
 - [X] for visual testing: evaluate always the same images to send to tensorboard
-- [ ] rename model
+- [X] rename model
 - [ ] Describe the `plac` parameters well
 - [ ] Cleanup the laploss and pca parts
 - [X] Store the PCA part locally to save some time
