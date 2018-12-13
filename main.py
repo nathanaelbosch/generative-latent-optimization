@@ -136,7 +136,7 @@ def main(
         Z = torch.load(_path)
     else:
         Z = pca_init(train_loader, latent_size, device=device)
-        torch.save(Z, './.dataset_pca_latent_init.pt')
+        torch.save(Z, '/tmp/GLO_{}_pca_latent_init.pt'.format(dataset))
 
     model = Generator(Z, out_channels=channels).to(device)
 
