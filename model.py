@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 def _project_to_l2_ball(z):
-    return z / np.maximum(np.sqrt(np.sum(z**2, axis=1))[:, np.newaxis], 1)
+    # return z / np.maximum(np.sqrt(np.sum(z**2, axis=1))[:, np.newaxis], 1)
+    # return z / np.sqrt(np.sum(z**2, axis=1))[:, np.newaxis]
+    return z
 
 
 def _generate_latent_from_pca(train_loader, z_dim):
@@ -26,9 +28,9 @@ def _generate_latent_from_pca(train_loader, z_dim):
 
     print("[Latent Init] Creating and populating the latent variables")
     Z = np.empty((len(train_loader.dataset), z_dim))
-    Z = torch.tensor(
-        pca.transform(images.view(images.size()[0], -1).numpy()),
-        requires_grad=True).float()
+    Z[indices] = pca.transform(images.view(images.size()[0], -1).numpy())
+    Z = _project_to_l2_ball(Z)
+    Z = torch.tensor(Z, requires_grad=True).float()
     return Z
 
 
@@ -37,7 +39,7 @@ def _disc_or_generation(train_loader, z_dim):
     """
     _path = '/tmp/GLO_pca_init_{}_{}.pt'.format(
         train_loader.dataset.base.filename, z_dim)
-    if os.path.isfile(_path):
+    if os.path.isfile(_path) and False:
         print(
             '[Latent Init] PCA already calculated before and saved at {}'.
             format(_path))
