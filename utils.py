@@ -24,7 +24,7 @@ class IndexToImageDataset(Dataset):
         return (idx, img)
 
 
-def pca_init(train_loader, z_dim):
+def pca_init(train_loader, z_dim, device=None):
     n_pca = 64*64*3*2
 
     # first, take a subset of train set to fit the PCA
@@ -43,6 +43,8 @@ def pca_init(train_loader, z_dim):
     Z = np.empty((len(train_loader.dataset), z_dim))
     for idx, X in tqdm(train_loader, 'pca projection'):
         Z[idx] = pca.transform(X.cpu().numpy().reshape(len(X), -1))
+    Z = project_l2_ball(Z)
+    Z = Variable(torch.from_numpy(Z).float().to(device), requires_grad=True)
     return Z
 
 

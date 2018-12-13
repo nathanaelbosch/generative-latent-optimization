@@ -36,6 +36,8 @@ python main.py -h
 - [X] for visual testing: evaluate always the same images to send to tensorboard
 - [ ] rename model
 - [ ] Describe the `plac` parameters well
+- [ ] Cleanup the laploss and pca parts
+- [X] Store the PCA part locally to save some time
 ** Related:
 Another implementation I found on the topic:
 https://github.com/tneumann/minimal_glo

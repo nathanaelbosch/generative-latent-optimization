@@ -1,4 +1,5 @@
 from collections import defaultdict
+import os
 import logging
 
 import torch
@@ -51,13 +52,13 @@ def get_dataloader(dataset, batch_size, data_path='./data'):
     return train_loader
 
 
-def train_epoch(model, device, train_loader, optimizer, epoch, epochs):
+def train_epoch(model, device, train_loader, optimizer, loss_fn, epoch,
+                epochs):
     """Train the model for a single epoch on the train data"""
     running = defaultdict(int)
 
     model.train()
     train_bar = tqdm.tqdm(train_loader)
-    loss_fn = LapLoss(max_levels=3)
     for indices, data in train_bar:
         data = data.to(device)
         optimizer.zero_grad()
@@ -130,20 +131,22 @@ def main(
     channels, width, height = image.size()
     logger.debug('image shape: {}'.format(image.size()))
 
-    Z = pca_init(train_loader, latent_size)
-    Z = project_l2_ball(Z)
-    Z = Variable(torch.from_numpy(Z).float().to(device), requires_grad=True)
+    _path = '/tmp/GLO_{}_pca_latent_init.pt'.format(dataset)
+    if os.path.isfile(_path):
+        Z = torch.load(_path)
+    else:
+        Z = pca_init(train_loader, latent_size, device=device)
+        torch.save(Z, './.dataset_pca_latent_init.pt')
 
     model = Generator(Z, out_channels=channels).to(device)
 
     # Log graph to tensorboard
-    writer.add_graph(model, torch.LongTensor([index, index]))
+    dummy_index = torch.ones([1, 1], dtype=torch.int64, device=device)
+    writer.add_graph(model, dummy_index)
 
     # Get test indices
-    test_indices = torch.tensor(
-        torch.randint(len(train_loader.dataset), size=(10, )),
-        device=device,
-        dtype=torch.int64)
+    test_indices = torch.randint(
+        len(train_loader.dataset), size=(10, )).to(torch.int64).to(device)
     test_images = [train_loader.dataset[int(i)][1] for i in test_indices]
     test_images = torch.cat([x.view(1, *x.size()) for x in test_images])
     log_images(test_images, 0, 'original_image')
@@ -161,9 +164,11 @@ def main(
         },
     ])
 
+    loss_fn = LapLoss(max_levels=3)
     validate(model, test_indices, 0)
     for epoch in range(1, epochs + 1):
-        train_epoch(model, device, train_loader, optimizer, epoch, epochs)
+        train_epoch(model, device, train_loader, optimizer, loss_fn, epoch,
+                    epochs)
         validate(model, test_indices, epoch)
 
 
