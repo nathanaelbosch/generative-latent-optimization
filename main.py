@@ -34,7 +34,6 @@ def setup_logger(level='DEBUG'):
 
 
 logger = setup_logger()
-writer = SummaryWriter(comment='')
 
 
 def get_dataloader(dataset, batch_size, data_path='./data'):
@@ -69,10 +68,23 @@ def get_dataloader(dataset, batch_size, data_path='./data'):
     return train_loader
 
 
-def log_images(images, epoch, tag='image'):
+def get_tensorboard_writer(description, path):
+    if description != '':
+        description = '_' + description
+    writer = SummaryWriter(log_dir=path, comment=description)
+    return writer
+
+
+def log_images_to_tensorboard_writer(writer, images, epoch, tag='image'):
     writer.add_image(
         tag, torchvision.utils.make_grid(images, nrow=5, normalize=True),
         epoch)
+
+
+def log_graph_to_tensorboard(writer, model, device):
+    # Log graph to tensorboard
+    dummy_index = torch.ones([1, 1], dtype=torch.int64, device=device)
+    writer.add_graph(model, dummy_index)
 
 
 def main(
@@ -91,11 +103,15 @@ def main(
         tensorboard_description: ('', 'option') = '',
         no_cuda: ('Do not use CUDA, even if available.', 'flag',
                   'no-cuda') = False,
+        # no_tensorboard: ('', 'flag', 'no-tensorboard') = False,
+        tensorboard_log_dir: (
+            'Directory to use for the tensorboard logs. Default is `./runs/`.',
+            'option', 'tensorboard_log_dir', str) = None,
+        log_interval: ('', 'option', 'log_interval') = 10,
 ):
+    # Setup
     use_cuda = torch.cuda.is_available() and not no_cuda
     device = torch.device('cuda' if use_cuda else 'cpu')
-    if tensorboard_description != '':
-        tensorboard_description = '_' + tensorboard_description
     torch.manual_seed(seed)
 
     # Define data, model, optimizer, loss, etc.
@@ -106,22 +122,19 @@ def main(
     trainer = create_supervised_trainer(
         model, optimizer, loss_fn, device=device)
 
+    # Setup tensorboard and the overall logging and log some static data
+    writer = get_tensorboard_writer(tensorboard_description,
+                                    tensorboard_log_dir)
+    log_graph_to_tensorboard(writer, model, device)
 
-    # Log graph to tensorboard
-    dummy_index = torch.ones([1, 1], dtype=torch.int64, device=device)
-    writer.add_graph(model, dummy_index)
-
-    # Get test indices
     test_indices = torch.randint(
         len(train_loader.dataset), size=(10, )).to(torch.int64).to(device)
     test_images = [train_loader.dataset[int(i)][1] for i in test_indices]
     test_images = torch.cat(
         [x.view(1, *x.size()) for x in test_images]).to(device)
-    log_images(test_images, 0, 'original_image')
-
+    log_images_to_tensorboard_writer(writer, test_images, 0, 'original_image')
 
     desc = '[Epoch {:d}/{:d}] Loss: {:.4f}'
-    log_interval = 1
     pbar = tqdm.tqdm(total=len(train_loader), desc=desc.format(0, epochs, 0))
 
     @trainer.on(Events.EPOCH_STARTED)
@@ -131,15 +144,15 @@ def main(
 
     @trainer.on(Events.ITERATION_COMPLETED)
     def calculate_running_loss(engine):
-        iter = (engine.state.iteration - 1) % len(train_loader) + 1
+        total_iteration = (engine.state.iteration - 1) % len(train_loader) + 1
         engine.state._running_loss_sum += engine.state.output
-        engine.state.running_loss = engine.state._running_loss_sum / iter
+        engine.state.running_loss = (
+            engine.state._running_loss_sum / total_iteration)
 
     @trainer.on(Events.ITERATION_COMPLETED)
     def update_progress_bar(engine):
-        iter = (engine.state.iteration - 1) % len(train_loader) + 1
-
-        if iter % log_interval == 0:
+        total_iteration = (engine.state.iteration - 1) % len(train_loader) + 1
+        if total_iteration % log_interval == 0:
             pbar.desc = desc.format(engine.state.epoch, epochs,
                                     engine.state.running_loss)
             pbar.update(log_interval)
@@ -166,7 +179,8 @@ def main(
     @trainer.on(Events.EPOCH_COMPLETED)
     def log_reconstructed_images(engine):
         output = model(test_indices)
-        log_images(output, engine.state.epoch, 'reconstructed_image')
+        log_images_to_tensorboard_writer(writer, output, engine.state.epoch,
+                                         'reconstructed_image')
 
     trainer.run(train_loader, max_epochs=epochs)
 
