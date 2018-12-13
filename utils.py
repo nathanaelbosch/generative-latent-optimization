@@ -7,9 +7,10 @@ from torch.utils.data import Dataset
 
 
 class IndexToImageDataset(Dataset):
-    """Wrapper for a dataset in order to also return indices
+    """Wrap a dataset to map indices to images
 
-    In other words, instead of producing (X, y) it produces (X, y, idx)
+    In other words, instead of producing (X, y) it produces (idx, X). The label
+    y is not relevant for our task.
     """
     def __init__(self, base_dataset):
         self.base = base_dataset
@@ -18,7 +19,7 @@ class IndexToImageDataset(Dataset):
         return len(self.base)
 
     def __getitem__(self, idx):
-        img, label = self.base[idx]
+        img, _ = self.base[idx]
         return (idx, img)
 
 
