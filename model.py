@@ -2,13 +2,10 @@ import os
 import logging
 
 import numpy as np
-from tqdm import tqdm
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from sklearn.decomposition import PCA
-from torch.autograd import Variable
 
 logger = logging.getLogger(__name__)
 
@@ -18,33 +15,30 @@ def _project_to_l2_ball(z):
 
 
 def _generate_latent_from_pca(train_loader, z_dim):
-    n_pca = 64 * 64 * 3 * 2
+    print("[Latent Init] Preparing PCA")
+    indices, images = zip(*[
+        (indices, images) for indices, images in train_loader])
+    indices, images = torch.cat(indices), torch.cat(images)
 
-    # first, take a subset of train set to fit the PCA
-    X_pca = np.vstack([
-        X.cpu().numpy().reshape(len(X), -1) for i, (_, X) in zip(
-            tqdm(
-                range(n_pca // train_loader.batch_size),
-                'collect data for PCA'), train_loader)
-    ])
-    print("perform PCA...")
+    print("[Latent Init] Performing the actual PCA")
     pca = PCA(n_components=z_dim)
-    pca.fit(X_pca)
-    # then, initialize latent vectors to the pca projections of the complete dataset
+    pca.fit(images.view(images.size()[0], -1).numpy())
+
+    print("[Latent Init] Creating and populating the latent variables")
     Z = np.empty((len(train_loader.dataset), z_dim))
-    for idx, X in tqdm(train_loader, 'pca projection'):
-        Z[idx] = pca.transform(X.cpu().numpy().reshape(len(X), -1))
-    Z = _project_to_l2_ball(Z)
-    Z = Variable(torch.from_numpy(Z).float(), requires_grad=True)
+    Z = torch.tensor(
+        pca.transform(images.view(images.size()[0], -1).numpy()),
+        requires_grad=True).float()
     return Z
 
 
-def _get_latent(train_loader, z_dim):
+def _get_latent_variables(train_loader, z_dim):
     _path = '/tmp/GLO_pca_init_{}_{}.pt'.format(
         train_loader.dataset.base.filename, z_dim)
     if os.path.isfile(_path):
-        logger.info('PCA already calculated before - Using local file {}'.
-                    format(_path))
+        print(
+            '[Latent Init] PCA already calculated before and saved at {}'.
+            format(_path))
         Z = torch.load(_path)
     else:
         Z = _generate_latent_from_pca(train_loader, z_dim)
@@ -55,7 +49,7 @@ def _get_latent(train_loader, z_dim):
 class LatentVariables(nn.Module):
     def __init__(self, train_loader, z_dim=100):
         super(LatentVariables, self).__init__()
-        self.Z = Parameter(_get_latent(train_loader, z_dim))
+        self.Z = Parameter(_get_latent_variables(train_loader, z_dim))
 
     def forward(self, indices):
         return self.Z[indices]
