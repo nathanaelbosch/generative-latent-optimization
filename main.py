@@ -57,7 +57,6 @@ def train_epoch(model, device, train_loader, optimizer, epoch, epochs):
 
     model.train()
     train_bar = tqdm.tqdm(train_loader)
-    dataset_size = len(train_loader.dataset)
     loss_fn = LapLoss(max_levels=3)
     for indices, data in train_bar:
         data = data.to(device)
@@ -79,22 +78,31 @@ def train_epoch(model, device, train_loader, optimizer, epoch, epochs):
                 running['loss_avg'],
             ))
 
-    writer.add_scalar('metrics/train_loss', running['loss_avg'], epoch)
-    # writer.add_scalar('metrics/train_acc', running['acc'], epoch)
-    # writer.add_image(
-    #     'reconstructed_image',
-    #     torchvision.utils.make_grid(output[:10], nrow=2, normalize=True),
-    #     epoch)
-    # writer.add_image(
-    #     'original_image',
-    #     torchvision.utils.make_grid(data[:10], nrow=2, normalize=True), epoch)
+    log_loss(running['loss_avg'], epoch)
+    log_parameters(model, epoch)
+
+
+def log_loss(loss, epoch):
+    writer.add_scalar('metrics/train_loss', loss, epoch)
+
+
+def log_parameters(model, epoch):
+    for tag, value in model.named_parameters():
+        tag = tag.replace('.', '/')
+        writer.add_histogram(tag, value.data.cpu().numpy(), epoch)
+        writer.add_histogram(tag + '/grad',
+                             value.grad.data.cpu().numpy(), epoch)
+
+
+def log_images(images, epoch, tag='image'):
+    writer.add_image(
+        tag, torchvision.utils.make_grid(images, nrow=5, normalize=True),
+        epoch)
 
 
 def validate(model, test_indices, epoch):
     output = model(test_indices)
-    writer.add_image(
-        'reconstructed_image',
-        torchvision.utils.make_grid(output, nrow=5, normalize=True), epoch)
+    log_images(output, epoch, 'reconstructed_image')
 
 
 def main(
@@ -138,9 +146,7 @@ def main(
         dtype=torch.int64)
     test_images = [train_loader.dataset[int(i)][1] for i in test_indices]
     test_images = torch.cat([x.view(1, *x.size()) for x in test_images])
-    writer.add_image(
-        'original_image',
-        torchvision.utils.make_grid(test_images, nrow=5, normalize=True), 0)
+    log_images(test_images, 0, 'original_image')
 
     optimizer = optim.Adam([
         {
