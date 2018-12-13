@@ -23,58 +23,76 @@ class IndexToImageDataset(Dataset):
         return (idx, img)
 
 
-def build_gauss_kernel(size=5, sigma=1.0, n_channels=1, cuda=False):
+def gaussian(x, sigma=1.0):
+    return np.exp(-(x**2) / (2*(sigma**2)))
+
+def build_gauss_kernel(
+        size=5, sigma=1.0, out_channels=1, in_channels=1, device=None):
+    """Construct the convolution kernel for a gaussian blur
+
+    See https://en.wikipedia.org/wiki/Gaussian_blur for a definition.
+    Overall I first generate a NxNx2 matrix of indices, and then use those to
+    calculate the gaussian function on each element. The two dimensional
+    Gaussian function is then the product along axis=2.
+    """
     if size % 2 != 1:
         raise ValueError("kernel size must be uneven")
-    grid = np.float32(np.mgrid[0:size,0:size].T)
-    gaussian = lambda x: np.exp((x - size//2)**2/(-2*sigma**2))**2
-    kernel = np.sum(gaussian(grid), axis=2)
+    grid = np.mgrid[range(size), range(size)] - size//2
+    kernel = np.prod(gaussian(grid, sigma), axis=0)
     kernel /= np.sum(kernel)
-    # repeat same kernel across depth dimension
-    kernel = np.tile(kernel, (n_channels, 1, 1))
-    # conv weight should be (out_channels, groups/in_channels, h, w),
-    # and since we have depth-separable convolution we want the groups dimension to be 1
-    kernel = torch.FloatTensor(kernel[:, None, :, :])
-    if cuda:
-        kernel = kernel.cuda()
-    return Variable(kernel, requires_grad=False)
+
+    # repeat same kernel for all pictures and all channels
+    # Also, conv weight should be (out_channels, in_channels/groups, h, w)
+    kernel = np.tile(kernel, (out_channels, in_channels, 1, 1))
+    kernel = torch.from_numpy(kernel).to(torch.float).to(device)
+    return kernel
 
 
-def conv_gauss(img, kernel):
-    """ convolve img with a gaussian kernel that has been built with build_gauss_kernel """
+def blur_images(images, kernel):
+    """Convolve the gaussian kernel with the given stack of images"""
     n_channels, _, kw, kh = kernel.shape
-    img = F.pad(img, (kw//2, kh//2, kw//2, kh//2), mode='replicate')
-    return F.conv2d(img, kernel, groups=n_channels)
+    img = F.pad(images, (kw//2, kh//2, kw//2, kh//2), mode='replicate')
+    return F.conv2d(img, kernel)
 
 
-def laplacian_pyramid(img, kernel, max_levels=5):
-    current = img
-    pyr = []
+def laplacian_pyramid(images, kernel, max_levels=5):
+    """Laplacian pyramid of each image
+
+    https://en.wikipedia.org/wiki/Pyramid_(image_processing)#Laplacian_pyramid
+    """
+    current = images
+    pyramid = []
 
     for level in range(max_levels):
-        filtered = conv_gauss(current, kernel)
+        filtered = blur_images(current, kernel)
         diff = current - filtered
-        pyr.append(diff)
+        pyramid.append(diff)
         current = F.avg_pool2d(filtered, 2)
-
-    pyr.append(current)
-    return pyr
+    pyramid.append(current)
+    return pyramid
 
 
 class LapLoss(nn.Module):
-    def __init__(self, max_levels=5, k_size=5, sigma=2.0):
+    def __init__(self, max_levels=5, kernel_size=5, sigma=1.0):
         super(LapLoss, self).__init__()
         self.max_levels = max_levels
-        self.k_size = k_size
+        self.kernel_size = kernel_size
         self.sigma = sigma
         self._gauss_kernel = None
 
-    def forward(self, input, target):
-        if self._gauss_kernel is None or self._gauss_kernel.shape[1] != input.shape[1]:
+    def forward(self, output, target):
+        if (self._gauss_kernel is None
+                or self._gauss_kernel.shape[1] != output.shape[1]):
             self._gauss_kernel = build_gauss_kernel(
-                size=self.k_size, sigma=self.sigma,
-                n_channels=input.shape[1], cuda=input.is_cuda
-            )
-        pyr_input  = laplacian_pyramid( input, self._gauss_kernel, self.max_levels)
-        pyr_target = laplacian_pyramid(target, self._gauss_kernel, self.max_levels)
-        return sum(F.l1_loss(a, b) for a, b in zip(pyr_input, pyr_target))
+                out_channels=output.shape[1],
+                in_channels=output.shape[1],
+                device=output.device)
+        output_pyramid = laplacian_pyramid(
+            output, self._gauss_kernel, max_levels=self.max_levels)
+        target_pyramid = laplacian_pyramid(
+            target, self._gauss_kernel, max_levels=self.max_levels)
+        diff_levels = [F.l1_loss(o, t)
+                        for o, t in zip(output_pyramid, target_pyramid)]
+        loss = sum([2**(-2*j) * diff_levels[j]
+                    for j in range(self.max_levels)])
+        return loss
