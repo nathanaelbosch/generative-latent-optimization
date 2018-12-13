@@ -89,25 +89,27 @@ def log_graph_to_tensorboard(writer, model, device):
 
 def main(
         # 'use_cuda': True and torch.cuda.is_available(),
-        data_path: ('Path where the dataset is stored', 'option') = './data/',
+        data_path: ('Path where the dataset is stored', 'option', '',
+                    str) = './data/',
         seed=1,
-        model_learning_rate: ('', 'option') = 1,
-        model_momentum: ('', 'option') = 0,
-        latent_learning_rate: ('', 'option') = 10,
-        latent_momentum: ('', 'option') = 0,
-        batch_size: ('', 'option') = 128,
+        model_learning_rate: ('', 'option', '', float) = 1,
+        model_momentum: ('', 'option', '', float) = 0,
+        latent_learning_rate: ('', 'option', '', float) = 10,
+        latent_momentum: ('', 'option', '', float) = 0,
+        batch_size: ('', 'option', '', int) = 128,
         # test_batch_size: ('', 'option')=1000,
-        latent_size: ('', 'option') = 100,
-        epochs: ('', 'option') = 1000,
-        dataset: ('', 'option') = 'cifar10',
-        tensorboard_description: ('', 'option') = '',
+        latent_size: ('', 'option', '', int) = 100,
+        epochs: ('', 'option', '', int) = 1000,
+        dataset: ('', 'option', '', str) = 'cifar10',
+        tensorboard_description: ('', 'option', 'tensorboard_description',
+                                  str) = '',
         no_cuda: ('Do not use CUDA, even if available.', 'flag',
                   'no-cuda') = False,
         # no_tensorboard: ('', 'flag', 'no-tensorboard') = False,
         tensorboard_log_dir: (
             'Directory to use for the tensorboard logs. Default is `./runs/`.',
             'option', 'tensorboard_log_dir', str) = None,
-        log_interval: ('', 'option', 'log_interval') = 10,
+        log_interval: ('', 'option', 'log_interval', int) = 10,
 ):
     # Setup
     use_cuda = torch.cuda.is_available() and not no_cuda
