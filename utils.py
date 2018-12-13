@@ -1,11 +1,9 @@
 import numpy as np
-from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.utils.data import Dataset
-from sklearn.decomposition import PCA
 
 
 class IndexToImageDataset(Dataset):
@@ -22,30 +20,6 @@ class IndexToImageDataset(Dataset):
     def __getitem__(self, idx):
         img, label = self.base[idx]
         return (idx, img)
-
-
-def pca_init(train_loader, z_dim, device=None):
-    n_pca = 64*64*3*2
-
-    # first, take a subset of train set to fit the PCA
-    X_pca = np.vstack([
-        X.cpu().numpy().reshape(len(X), -1)
-        for i, (_, X)
-        in zip(tqdm(
-            range(n_pca // train_loader.batch_size),
-            'collect data for PCA'),
-               train_loader)
-    ])
-    print("perform PCA...")
-    pca = PCA(n_components=z_dim)
-    pca.fit(X_pca)
-    # then, initialize latent vectors to the pca projections of the complete dataset
-    Z = np.empty((len(train_loader.dataset), z_dim))
-    for idx, X in tqdm(train_loader, 'pca projection'):
-        Z[idx] = pca.transform(X.cpu().numpy().reshape(len(X), -1))
-    Z = project_l2_ball(Z)
-    Z = Variable(torch.from_numpy(Z).float().to(device), requires_grad=True)
-    return Z
 
 
 def build_gauss_kernel(size=5, sigma=1.0, n_channels=1, cuda=False):
@@ -103,7 +77,3 @@ class LapLoss(nn.Module):
         pyr_input  = laplacian_pyramid( input, self._gauss_kernel, self.max_levels)
         pyr_target = laplacian_pyramid(target, self._gauss_kernel, self.max_levels)
         return sum(F.l1_loss(a, b) for a, b in zip(pyr_input, pyr_target))
-
-
-def project_l2_ball(z):
-    return z / np.maximum(np.sqrt(np.sum(z**2, axis=1))[:, np.newaxis], 1)

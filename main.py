@@ -12,8 +12,8 @@ import numpy as np
 from ignite.engine import Events, create_supervised_trainer
 from ignite.metrics import RunningAverage, Loss
 
-from model import Generator
-from utils import IndexToImageDataset, pca_init, LapLoss
+from model import CombinedModel
+from utils import IndexToImageDataset, LapLoss
 
 
 def setup_logger(level='DEBUG'):
@@ -98,23 +98,14 @@ def main(
         tensorboard_description = '_' + tensorboard_description
     torch.manual_seed(seed)
 
+    # Define data, model, optimizer, loss, etc.
     train_loader = get_dataloader(dataset, batch_size, data_path)
+    model = CombinedModel(train_loader, latent_size).to(device)
+    optimizer = optim.Adam(model.parameters())
+    loss_fn = LapLoss(max_levels=3)
+    trainer = create_supervised_trainer(
+        model, optimizer, loss_fn, device=device)
 
-    # Get dimensions
-    index, image = train_loader.dataset[0]
-    channels, width, height = image.size()
-    logger.debug('image shape: {}'.format(image.size()))
-
-    _path = '/tmp/GLO_{}_pca_latent_init.pt'.format(dataset)
-    if os.path.isfile(_path):
-        logger.info('PCA already calculated before - Using local file {}'.
-                    format(_path))
-        Z = torch.load(_path)
-    else:
-        Z = pca_init(train_loader, latent_size, device=device)
-        torch.save(Z, '/tmp/GLO_{}_pca_latent_init.pt'.format(dataset))
-
-    model = Generator(Z, out_channels=channels).to(device)
 
     # Log graph to tensorboard
     dummy_index = torch.ones([1, 1], dtype=torch.int64, device=device)
@@ -128,22 +119,6 @@ def main(
         [x.view(1, *x.size()) for x in test_images]).to(device)
     log_images(test_images, 0, 'original_image')
 
-    optimizer = optim.Adam([
-        {
-            'params': model.main.parameters(),
-            # 'lr': model_learning_rate,
-            # 'momentum': model_momentum,
-        },
-        {
-            'params': (model.Z, ),
-            # 'lr': latent_learning_rate,
-            # 'momentum': latent_momentum,
-        },
-    ])
-
-    loss_fn = LapLoss(max_levels=3)
-    trainer = create_supervised_trainer(
-        model, optimizer, loss_fn, device=device)
 
     desc = '[Epoch {:d}/{:d}] Loss: {:.4f}'
     log_interval = 1
@@ -199,4 +174,3 @@ def main(
 if __name__ == '__main__':
     import plac
     plac.call(main)
-    # main()
