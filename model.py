@@ -11,7 +11,7 @@ class Generator(nn.Module):
 
     Copied from https://github.com/pytorch/examples/blob/master/dcgan/main.py
     Minor adaptation to match the 32x32 dimension on CIFAR10"""
-    def __init__(self, z_dim=100, n_filters=64, out_channels=3, out_width=64):
+    def __init__(self, Z, z_dim=100, n_filters=64, out_channels=3, out_width=64):
         super(Generator, self).__init__()
         self.z_dim = z_dim
         assert out_width in [32, 64]
@@ -39,5 +39,8 @@ class Generator(nn.Module):
             # state size. (out_channels) x 64 x 64
         )
 
-    def forward(self, code):
+        self.Z = Z
+
+    def forward(self, indices):
+        code = self.Z[indices]
         return self.main(code.view(code.size(0), self.z_dim, 1, 1))

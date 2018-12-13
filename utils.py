@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 from sklearn.decomposition import PCA
 
 
-class IndexedDataset(Dataset):
+class IndexToImageDataset(Dataset):
     """Wrapper for a dataset in order to also return indices
 
     In other words, instead of producing (X, y) it produces (X, y, idx)
@@ -21,7 +21,7 @@ class IndexedDataset(Dataset):
 
     def __getitem__(self, idx):
         img, label = self.base[idx]
-        return (img, label, idx)
+        return (idx, img)
 
 
 def pca_init(train_loader, z_dim):
@@ -30,7 +30,7 @@ def pca_init(train_loader, z_dim):
     # first, take a subset of train set to fit the PCA
     X_pca = np.vstack([
         X.cpu().numpy().reshape(len(X), -1)
-        for i, (X, _, _)
+        for i, (_, X)
         in zip(tqdm(
             range(n_pca // train_loader.batch_size),
             'collect data for PCA'),
@@ -41,7 +41,7 @@ def pca_init(train_loader, z_dim):
     pca.fit(X_pca)
     # then, initialize latent vectors to the pca projections of the complete dataset
     Z = np.empty((len(train_loader.dataset), z_dim))
-    for X, _, idx in tqdm(train_loader, 'pca projection'):
+    for idx, X in tqdm(train_loader, 'pca projection'):
         Z[idx] = pca.transform(X.cpu().numpy().reshape(len(X), -1))
     return Z
 
@@ -101,3 +101,7 @@ class LapLoss(nn.Module):
         pyr_input  = laplacian_pyramid( input, self._gauss_kernel, self.max_levels)
         pyr_target = laplacian_pyramid(target, self._gauss_kernel, self.max_levels)
         return sum(F.l1_loss(a, b) for a, b in zip(pyr_input, pyr_target))
+
+
+def project_l2_ball(z):
+    return z / np.maximum(np.sqrt(np.sum(z**2, axis=1))[:, np.newaxis], 1)
