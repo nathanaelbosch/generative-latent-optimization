@@ -32,8 +32,10 @@ python main.py -h
 
 ** To-Do
 - [ ] explanation for the tensorboard usage
-- [ ] logging of the model parameters for nice histograms
-- [ ] for visual testing: evaluate always the same images to send to tensorboard
+- [X] logging of the model parameters for nice histograms
+- [X] for visual testing: evaluate always the same images to send to tensorboard
+- [ ] rename model
+- [ ] Describe the `plac` parameters well
 ** Related:
 Another implementation I found on the topic:
 https://github.com/tneumann/minimal_glo
