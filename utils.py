@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 from torch.utils.data import Dataset
 
 
@@ -25,6 +24,7 @@ class IndexToImageDataset(Dataset):
 
 def gaussian(x, sigma=1.0):
     return np.exp(-(x**2) / (2*(sigma**2)))
+
 
 def build_gauss_kernel(
         size=5, sigma=1.0, out_channels=1, in_channels=1, device=None):
