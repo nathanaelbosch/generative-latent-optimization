@@ -32,7 +32,9 @@ def _generate_latent_from_pca(train_loader, z_dim):
     return Z
 
 
-def _get_latent_variables(train_loader, z_dim):
+def _disc_or_generation(train_loader, z_dim):
+    """Wrapper function to decide if we initialize from disc or by generating
+    """
     _path = '/tmp/GLO_pca_init_{}_{}.pt'.format(
         train_loader.dataset.base.filename, z_dim)
     if os.path.isfile(_path):
@@ -49,7 +51,7 @@ def _get_latent_variables(train_loader, z_dim):
 class LatentVariables(nn.Module):
     def __init__(self, train_loader, z_dim=100):
         super(LatentVariables, self).__init__()
-        self.Z = Parameter(_get_latent_variables(train_loader, z_dim))
+        self.Z = Parameter(_disc_or_generation(train_loader, z_dim))
 
     def forward(self, indices):
         return self.Z[indices]
