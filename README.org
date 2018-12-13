@@ -19,17 +19,21 @@ CUDA, etc.
 
 ** Train the model
 #+BEGIN_SRC sh
-python glo/main.py
+python main.py
 #+END_SRC
 
 You can also see all available options with, to e.g. decide on the dataset, the
 path where the dataset is stored, or the training parameters.
 #+BEGIN_SRC sh
-python glo/main.py -h
+python main.py -h
 #+END_SRC
 
 ** TensorboardX
 
+** To-Do
+- [ ] explanation for the tensorboard usage
+- [ ] logging of the model parameters for nice histograms
+- [ ] for visual testing: evaluate always the same images to send to tensorboard
 ** Related:
 Another implementation I found on the topic:
 https://github.com/tneumann/minimal_glo

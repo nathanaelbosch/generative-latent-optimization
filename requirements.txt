@@ -2,8 +2,8 @@ numpy
 pandas
 plac
 scikit-learn
-# tensorboard
-# tensorflow
+tensorboard
+tensorflow
 tensorboardX
 torchvision
 tqdm
