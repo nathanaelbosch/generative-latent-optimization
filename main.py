@@ -159,6 +159,7 @@ def main(
 
     @trainer.on(Events.EPOCH_COMPLETED)
     def refresh_progress_bar(engine):
+        print()
         pbar.n = pbar.last_print_n = 0
 
     @trainer.on(Events.EPOCH_COMPLETED)
