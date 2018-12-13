@@ -99,7 +99,7 @@ def main(
         batch_size: ('', 'option', '', int) = 128,
         # test_batch_size: ('', 'option')=1000,
         latent_size: ('', 'option', '', int) = 100,
-        epochs: ('', 'option', '', int) = 1000,
+        epochs: ('', 'option', '', int) = 250,
         dataset: ('', 'option', '', str) = 'cifar10',
         tensorboard_description: ('', 'option', 'tensorboard_description',
                                   str) = '',
@@ -120,7 +120,7 @@ def main(
     train_loader = get_dataloader(dataset, batch_size, data_path)
     model = CombinedModel(train_loader, latent_size).to(device)
     optimizer = optim.Adam(model.parameters())
-    loss_fn = LapLoss(max_levels=3)
+    loss_fn = LapLoss()
     trainer = create_supervised_trainer(
         model, optimizer, loss_fn, device=device)
 
