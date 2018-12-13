@@ -7,3 +7,4 @@ tensorflow
 tensorboardX
 torchvision
 tqdm
+ignite
