@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 def _project_to_l2_ball(z):
-    # return z / np.maximum(np.sqrt(np.sum(z**2, axis=1))[:, np.newaxis], 1)
-    # return z / np.sqrt(np.sum(z**2, axis=1))[:, np.newaxis]
-    return z / np.max(np.sqrt(np.sum(z**2, axis=1))[:, np.newaxis])
-    # return z
+    # return z / np.maximum(np.sqrt(np.sum(z**2, axis=1))[:, None], 1)
+    # return z / np.sqrt(np.sum(z**2, axis=1))[:, None]
+    # return z / np.max(np.sqrt(np.sum(z**2, axis=1))[:, None])
+    return z
 
 
 def _generate_latent_from_pca(train_loader, z_dim):
