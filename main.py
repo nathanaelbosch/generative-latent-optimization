@@ -185,6 +185,10 @@ def main(
         log_images_to_tensorboard_writer(writer, output, engine.state.epoch,
                                          'reconstructed_image')
 
+    @trainer.on(Events.COMPLETED)
+    def close_pbar(engine):
+        pbar.close()
+
     trainer.run(train_loader, max_epochs=epochs)
 
 
